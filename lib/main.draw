@@ -1,0 +1,175 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+void main() => runApp(TagesaufgabenApp());
+
+class TagesaufgabenApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Tagesaufgaben ZDL',
+      theme: ThemeData(primarySwatch: Colors.blue),
+      home: AufgabenHome(),
+      debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class Aufgabe {
+  String titel;
+  String erledigtVon;
+  DateTime? erledigtZeit;
+  Aufgabe(this.titel, {this.erledigtVon = '', this.erledigtZeit});
+}
+
+class AufgabenHome extends StatefulWidget {
+  @override
+  _AufgabenHomeState createState() => _AufgabenHomeState();
+}
+
+class _AufgabenHomeState extends State<AufgabenHome> {
+  String benutzername = '';
+  bool loggedIn = false;
+  bool isAdmin = false;
+  bool muting = false;
+  final String adminPass = 'admin123';
+
+  List<Aufgabe> aufgaben = [
+    Aufgabe('Müllstation leeren'),
+    Aufgabe('Garage reinigen'),
+  ];
+
+  void login(String name, String pass) {
+    setState(() {
+      benutzername = name;
+      loggedIn = name.isNotEmpty;
+      isAdmin = (pass == adminPass);
+    });
+  }
+
+  void logout() {
+    setState(() {
+      benutzername = '';
+      loggedIn = false;
+      isAdmin = false;
+    });
+  }
+
+  void toggleMute() => setState(() => muting = !muting);
+  void completeTask(int i) {
+    setState(() {
+      aufgaben[i].erledigtVon = benutzername;
+      aufgaben[i].erledigtZeit = DateTime.now();
+    });
+  }
+
+  void addTask(String t) {
+    setState(() => aufgaben.add(Aufgabe(t)));
+  }
+
+  void deleteTask(int i) {
+    setState(() => aufgaben.removeAt(i));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Tagesaufgaben ZDL')),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: loggedIn ? buildMain() : buildLogin(),
+      ),
+    );
+  }
+
+  Widget buildLogin() {
+    final nameCtl = TextEditingController();
+    final passCtl = TextEditingController();
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Name eingeben:'),
+          TextField(controller: nameCtl),
+          SizedBox(height: 12),
+          Text('Admin Passwort:'),
+          TextField(controller: passCtl, obscureText: true),
+          SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: () => login(nameCtl.text.trim(), passCtl.text.trim()),
+            child: Text('Einloggen'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget buildMain() {
+    return Column(
+      children: [
+        Row(children: [
+          ElevatedButton(
+            onPressed: toggleMute,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: muting ? Colors.grey : Colors.green,
+            ),
+            child: Text(muting ? '🔕 Abwesend' : '🔔 Anwesend'),
+          ),
+          if (isAdmin)
+            Padding(
+              padding: EdgeInsets.only(left: 12),
+              child: ElevatedButton(
+                onPressed: () => addDialog(),
+                child: Text('➕ Aufgabe'),
+              ),
+            )
+        ]),
+        Expanded(
+          child: ListView.builder(
+            itemCount: aufgaben.length,
+            itemBuilder: (_, i) => Card(
+              child: ListTile(
+                title: Text(aufgaben[i].titel),
+                subtitle: aufgaben[i].erledigtVon.isEmpty
+                    ? Text('Noch offen')
+                    : Text(
+                        'Erledigt von ${aufgaben[i].erledigtVon} um ${DateFormat.Hm().format(aufgaben[i].erledigtZeit!)}'),
+                trailing: aufgaben[i].erledigtVon.isEmpty
+                    ? ElevatedButton(
+                        child: Text('Erledigt'),
+                        onPressed: loggedIn ? () => completeTask(i) : null)
+                    : isAdmin
+                        ? IconButton(
+                            icon: Icon(Icons.delete),
+                            onPressed: () => deleteTask(i))
+                        : null,
+              ),
+            ),
+          ),
+        ),
+        ElevatedButton(onPressed: logout, child: Text('🚪 Abmelden')),
+      ],
+    );
+  }
+
+  void addDialog() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Neue Aufgabe'),
+        content: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Titel')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text('Abbrechen')),
+          ElevatedButton(
+            onPressed: () {
+              addTask(ctrl.text.trim());
+              Navigator.pop(context);
+            },
+            child: Text('Hinzufügen'),
+          )
+        ],
+      ),
+    );
+  }
+}
